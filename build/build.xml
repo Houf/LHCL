@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="houf.build" default="release" basedir=".">
+	<dirname property="houf.build.dirname" file="${ant.file.houf.build}"/>
+
+    <property environment="env"/>
+    <property name="artifacts.dir" value="${basedir}/artifacts"/>
+
+    <taskdef resource="net/sf/antcontrib/antlib.xml"/>
+
+    <target name="release" depends="clean,init,prepare,package-android,run-unit-tests"/>
+    
+	<target name="clean">
+		<delete includeemptydirs="true" failonerror="false">
+			<fileset dir="${artifacts.dir}" includes="**/*"/>
+			<fileset dir="tmp" includes="**/*"/>
+		</delete>
+	</target>
+
+    <target name="init">
+        <mkdir dir="${artifacts.dir}"/>
+    </target>     
+
+	<target name="prepare">
+		<exec dir=".." executable="android.bat" failonerror="false">
+			<arg value="update"/>
+			<arg value="project"/>
+			<arg value="-p"/>
+			<arg value="."/>
+        </exec>
+	</target>
+
+	<target name="package-android">
+        <ant antfile="${houf.build.dirname}/../build.xml" inheritAll="false" target="build">
+            <!-- Override properties -->
+            <property name="artifacts.dir" value="${artifacts.dir}"/>
+            <property name="version.number" value="${version.number}"/>
+            <property name="build.number" value="${build.number}"/>
+        </ant>
+    </target>
+
+	<target name="run-unit-tests">
+        <ant antfile="${houf.build.dirname}/../test/build.xml" inheritAll="false" target="runTestsOnly">
+        </ant>
+    </target>
+
+	<target name="copy-tests-results">
+        <ant antfile="${houf.build.dirname}/../test/build.xml" inheritAll="false" target="copy-to-artifacts">
+			<property name="artifacts.dir" value="${artifacts.dir}"/>
+        </ant>
+    </target>
+</project>

@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="unitTests" default="runTestsOnly">
+
+	<dirname property="unitTests.dirname" file="${unitTests}"/>
+	
+	<property environment="env"/>
+    <property name="junit4.dir" value="./libs"/>
+    <property name="android.dir" value="${env.ANDROID_HOME}/platforms/android-19"/>
+	<property name="tools.jar.dir" value="${env.JAVA_HOME}/lib"/>
+    <property name="robolectric.dir" value="./libs/robolectric"/>
+    <property name="jmock.dir" value="./libs/jmock-2.6.0"/>
+    <property name="cobertura.dir" value="./libs/cobertura-1.9.4.1" />
+
+    <property name="source.dir" value="src"/>
+    <property name="out.dir" value="bin"/>
+    <property name="tmp.dir" value="tmp"/>
+    <property name="classes.dir" value="${out.dir}"/>
+    <property name="reports.dir" value="reports"/>
+    <property name="instrumented.dir" value="instrumented"/>
+    <property name="tested.dir" value="../"/>
+    <property name="src.dir" value="${tested.dir}/src"/>
+    <property name="tested.classes.dir" value="${tested.dir}/bin/classes"/>
+	<property name="tested.res.dir" value="${tested.dir}/res"/>
+    <property name="tested.libs.dir" value="${tested.dir}/libs"/>
+    <property name="tested.res.layout.dir" value="${tested.dir}/res/layout"/>
+    <property name="tested.res.values.dir" value="${tested.dir}/res/values"/>
+    <property name="coverage.xml.dir" value="coverage" />
+    <property name="coverage.summaryxml.dir" value="coverageSummary" />
+    <property name="coverage.html.dir" value="coverageHtml" />
+
+    <path id="cobertura.classpath">
+        <fileset dir="${cobertura.dir}">
+            <include name="cobertura.jar" />
+            <include name="lib/**/*.jar" />
+        </fileset>
+    </path>
+    
+    <taskdef classpathref="cobertura.classpath" resource="tasks.properties" />
+    
+    <path id="compile.classpath">
+        <fileset dir="${jmock.dir}" includes="*.jar"/>
+        <fileset dir="${junit4.dir}" includes="*4.11.jar"/>
+		<fileset dir="${tools.jar.dir}" includes="tools.jar"/>
+        <fileset dir="${robolectric.dir}" includes="*-2.2-*.jar"/>
+        <fileset dir="${android.dir}" includes="*.jar"/>
+        <pathelement location="${tested.dir}"/>
+        <pathelement location="${tested.res.dir}"/>
+        <pathelement location="${tested.res.layout.dir}"/>
+        <pathelement location="${tested.res.values.dir}"/>
+        <pathelement location="${tested.classes.dir}"/>
+		<fileset dir="${tested.libs.dir}" includes="*.jar"/>
+    </path>
+    
+    <path id="run.classpath">
+        <path refid="compile.classpath"/>
+        <pathelement path="${tested.dir}"/>
+        <pathelement location="${classes.dir}"/>
+        <pathelement location="${tested.classes.dir}"/>
+        <pathelement location="${tested.res.dir}"/>
+    </path>
+    
+    <target name="clean">
+        <delete dir="${reports.dir}"/>
+        <delete dir="${out.dir}"/>
+        <delete dir="${tmp.dir}"/>
+        <delete dir="${instrumented.dir}"/>
+        <delete dir="${coverage.xml.dir}" />
+        <delete dir="${coverage.summaryxml.dir}" />
+        <delete dir="${coverage.html.dir}" />
+    </target>
+    
+    <target name="-init">
+        <mkdir dir="${out.dir}"/>
+        <mkdir dir="${classes.dir}"/>
+        <mkdir dir="${reports.dir}"/>
+        <mkdir dir="${instrumented.dir}" />
+        <mkdir dir="${coverage.xml.dir}" />
+        <mkdir dir="${coverage.summaryxml.dir}" />
+        <mkdir dir="${coverage.html.dir}" />
+    </target>
+    
+    <target name="-compile-tested">
+        <subant target="release" buildpath="${tested.dir}"/>
+    </target>
+     
+	<target name="compile" depends="-init">
+        <javac debug="true" destdir="${classes.dir}" includeantruntime="false">
+            <src path="${source.dir}"/>
+            <classpath refid="compile.classpath"/>
+            <classpath refid="cobertura.classpath" />
+        </javac>
+    </target>
+    
+    <target name="instrument" depends="-init,compile">
+        <!--
+            Remove the coverage data file and any old instrumentation.
+        -->
+        <delete file="cobertura.ser"/>
+        <delete dir="${instrumented.dir}" />
+    
+        <!--
+            Instrument the application classes, writing the instrumented classes into ${instrumented.dir}.
+        -->
+        <cobertura-instrument todir="${instrumented.dir}">
+            <fileset dir="${tested.classes.dir}">
+                <!--
+                    Instrument all the application classes, but don't instrument the test classes.
+                -->
+                <include name="**/*.class" />
+                <exclude name="**/*Test.class" />
+            </fileset>
+        </cobertura-instrument>
+    </target>
+    
+    <target name="run-tests" depends="compile">
+        <junit dir="${basedir}/" printsummary="yes" failureproperty="test.failure" forkmode="once">
+            <sysproperty key="net.sourceforge.cobertura.datafile" file="${basedir}/cobertura.ser" />  	
+            <classpath location="${instrumented.dir}" />
+            <classpath refid="run.classpath"/>
+            <classpath refid="cobertura.classpath" />
+            <formatter type="xml"/>
+
+            <batchtest todir="${reports.dir}" fork="true">
+                <fileset dir="${source.dir}" includes="**/*Test.java"/>
+            </batchtest>
+        </junit>
+    
+        <fail message="One or more test cases failed." if="test.failure"/>
+    </target>
+    
+    <target name="coverage-report">
+        <!--
+            Generate an XML file containing the coverage data using the "srcdir" attribute.
+        -->
+        <cobertura-report srcdir="${src.dir}" destdir="${coverage.xml.dir}" format="xml" />
+    </target>
+    
+    <target name="summary-coverage-report">
+        <!--
+            Generate an summary XML file containing the coverage data using the "srcdir" attribute.
+        -->
+        <cobertura-report srcdir="${src.dir}" destdir="${coverage.summaryxml.dir}" format="summaryXml" />
+    </target>
+    
+    <target name="html-coverage-report">
+        <!--
+            Generate a series of HTML files containing the coverage data in a user-readable form using nested source filesets.
+        -->
+        <cobertura-report format="html" destdir="${coverage.html.dir}" srcdir="${src.dir}">
+        	
+            <fileset dir="${src.dir}">
+                <include name="**/*.java"/>
+            </fileset>
+        </cobertura-report>
+    </target>
+    
+	<target name="copy-to-artifacts">
+        <move todir="${artifacts.dir}/"
+        file="${unitTests.dirname}/${coverage.html.dir}/" failonerror="false"/>
+    </target>
+
+    <target name="coverage" depends="clean,compile,instrument,run-tests,html-coverage-report" 
+    	description="Compile, instrument ourself, run the tests and generate JUnit and coverage reports."/>
+    
+    <target name="runTestsOnly" depends="clean,compile,run-tests" 
+        description="Compile, instrument ourself, run the tests and generate JUnit and coverage reports."/>
+</project>
