@@ -31,9 +31,7 @@ public class ErrorCatcher implements Thread.UncaughtExceptionHandler
         final File folderToWriteTo = new File(folder);
 
         if(!folderToWriteTo.exists())
-        {
             folderToWriteTo.mkdirs();
-        }
 
         previousHandler = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler(this);
